@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">RecyclerTest</string>
-    <string name="error_text">Что-то пошло не так. Попробуйте еще раз.</string>
-    <string name="msg_wrong_number">Wrong phone number!</string>
+    <string name="error_text">Something is wrong. Try again.</string>
     <string name="action_stop_calling">CANCEL</string>
     <string name="call_interrupted">Call was cancelled</string>
+    <string name="msg_wrong_id">Wrong ID</string>
+    <string name="msg_no_number">Empty Phone #!</string>
 </resources>

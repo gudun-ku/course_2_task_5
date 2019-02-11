@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RecyclerTest</string>
+    <string name="error_text">Что-то пошло не так. Попробуйте еще раз.</string>
+    <string name="action_stop_calling">ОТМЕНА</string>
+    <string name="call_interrupted">Звонок отменен</string>
+    <string name="msg_wrong_id">Неверный id!</string>
+    <string name="msg_no_number">Нет номера!</string>
+</resources>

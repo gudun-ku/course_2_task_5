@@ -11,16 +11,18 @@ import java.util.concurrent.TimeUnit;
 public class ContactDataLoader extends AsyncTaskLoader<String> {
 
    private String mId;
+   private boolean mIsCanceled;
    private WeakReference<Context> mContext;
 
 
-   public ContactDataLoader(Context context) {
+    public ContactDataLoader(Context context, String id) {
        super(context);
        mContext = new WeakReference<>(context);
-   }
+       mId = id;
+    }
 
-    public void setId(String id) {
-        mId = id;
+    public boolean isCanceled() {
+        return mIsCanceled;
     }
 
     @Override
@@ -32,12 +34,19 @@ public class ContactDataLoader extends AsyncTaskLoader<String> {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Cursor cursor = mContext.get().getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+
+        Context context = mContext.get();
+
+        if (context == null)
+            return null;
+
+        Cursor cursor = context.getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
                 ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ? AND "
                         + ContactsContract.CommonDataKinds.Phone.TYPE + " = ?",
                 new String[]{mId, String.valueOf(ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)},
                 null);
+
 
         if (cursor != null && cursor.moveToFirst()) {
             number = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
@@ -48,9 +57,11 @@ public class ContactDataLoader extends AsyncTaskLoader<String> {
 
     @Override
     protected void onStartLoading() {
+
+        mIsCanceled = false;
         // if id is null, do nothing and reset to keep isStarted false
         if (mId == null) {
-            reset();
+           return;
         } else {
             forceLoad();
         }
@@ -58,12 +69,14 @@ public class ContactDataLoader extends AsyncTaskLoader<String> {
 
     @Override
     protected void onReset() {
-        mId = null;
+        mIsCanceled = false;
         super.onReset();
     }
 
     @Override
-    protected boolean onCancelLoad() {
-        return super.onCancelLoad();
+    public void onCanceled(String data) {
+        mIsCanceled = true;
+        deliverResult(null);
+        super.onCanceled(data);
     }
 }

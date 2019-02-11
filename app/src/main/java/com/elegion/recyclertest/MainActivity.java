@@ -1,8 +1,13 @@
 package com.elegion.recyclertest;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.LoaderManager;
 import android.content.Intent;
 
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.Loader;
 import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
@@ -14,8 +19,9 @@ import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity
-        implements ContactsAdapter.OnItemClickListener, LoaderManager.LoaderCallbacks<String>,
-        Loader.OnLoadCanceledListener<String>
+        implements ContactsAdapter.OnItemClickListener,
+        LoaderManager.LoaderCallbacks<String>
+
 
 {
 
@@ -42,29 +48,68 @@ public class MainActivity extends AppCompatActivity
         mToast.show();
     }
 
+    // Запросим разрешения, достала их установка вручную
+    private final int PERMISSION_READ_CONTACTS_REQUEST_CODE = 1001;
+    private final int PERMISSION_CALL_PHONE_REQUEST_CODE = 1002;
+
+    public void requestPermissions() {
+        if ( ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) !=
+                PackageManager.PERMISSION_GRANTED ) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_CONTACTS},
+                    PERMISSION_READ_CONTACTS_REQUEST_CODE);
+        }
+
+        if ( ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) !=
+                PackageManager.PERMISSION_GRANTED ) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CALL_PHONE},
+                    PERMISSION_CALL_PHONE_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_READ_CONTACTS_REQUEST_CODE ) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                requestPermissions();
+            }
+        }else if (requestCode == PERMISSION_READ_CONTACTS_REQUEST_CODE ) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                requestPermissions();
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+    // конец запроса разрешений
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //проверим разрешения
+        requestPermissions();
 
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.container, RecyclerFragment.newInstance())
                     .commit();
-            mContactLoader = getSupportLoaderManager().initLoader(LOADER_ID, null, this);
-        } else {
-            mContactLoader = getSupportLoaderManager().getLoader(LOADER_ID);
         }
-        //register cancelled listener
-        //mContactLoader.registerOnLoadCanceledListener(this);
+        // подберем если уже запущен
+        mContactLoader = getSupportLoaderManager().getLoader(LOADER_ID);
     }
 
     @Override
     public void onItemClick(String id) {
-        mContactLoader = getSupportLoaderManager().getLoader(LOADER_ID);
-        // set contact id
-        ((ContactDataLoader) mContactLoader).setId(id);
-        mContactLoader.startLoading();
+        Bundle args = new Bundle();
+        args.putString(CONTACT_ID, id);
+        if (mContactLoader == null) {
+            mContactLoader = getSupportLoaderManager().initLoader(LOADER_ID, args, this);
+        } else {
+            mContactLoader = getSupportLoaderManager().restartLoader(LOADER_ID, args, this);
+
+        }
     }
 
     @Override
@@ -79,7 +124,7 @@ public class MainActivity extends AppCompatActivity
         switch (itemId) {
             case R.id.action_stop_calling:
                 // cancel calling process
-                if (mContactLoader.isStarted()) {
+                if (mContactLoader != null && mContactLoader.isStarted()) {
                     mContactLoader.cancelLoad();
                 }
                 break;
@@ -90,31 +135,32 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public Loader<String> onCreateLoader(int i, Bundle bundle) {
-        String id = null;
-        if (bundle != null) {
-          id = bundle.getString(CONTACT_ID, null);
+    public Loader<String> onCreateLoader(int i, Bundle args) {
+        if (args == null) {
+            showToast(getString(R.string.msg_wrong_id));
+            return null;
         }
-        return new ContactDataLoader(this);
+        String id = args.getString(CONTACT_ID, null);
+        return new ContactDataLoader(this, id);
     }
 
 
     @Override
     public void onLoadFinished(Loader<String> loader, String number) {
-        loader.reset();
-        if (number == null || TextUtils.isEmpty(number)) {
-            showToast(getString(R.string.msg_wrong_number));
+        if (((ContactDataLoader) loader).isCanceled()) {
+            loader.reset();
+            showToast(getString(R.string.call_interrupted));
         } else {
-            startActivity(new Intent(Intent.ACTION_CALL).setData(Uri.parse("tel:" + number)));
+            loader.reset();
+            if (number == null || TextUtils.isEmpty(number)) {
+                showToast(getString(R.string.msg_no_number));
+            } else {
+                startActivity(new Intent(Intent.ACTION_CALL).setData(Uri.parse("tel:" + number)));
+            }
         }
-
     }
 
-    @Override
-    public void onLoadCanceled(Loader<String> loader) {
-        showToast(getString(R.string.call_interrupted));
-        loader.reset();
-    }
+
 
     @Override
     public void onLoaderReset(Loader<String> loader) {
